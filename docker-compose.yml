@@ -9,7 +9,6 @@ services:
     user: 1000:1000
     environment:
       - JELLYFIN_PublishedServerUrl=http://stream.fruzyna.net
-      - NVIDIA_VISIBLE_DEVICES=all
     volumes:
       - /weeghman/gpu-config/jellyfin:/config
       - /weeghman/gpu-databases/jellyfin-cache:/cache
