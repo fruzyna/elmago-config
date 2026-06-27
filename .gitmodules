@@ -1,0 +1,3 @@
+[submodule "finance-v2"]
+	path = finance-v2
+	url = https://github.com/fruzyna/finance-v2

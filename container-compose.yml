@@ -1,0 +1,195 @@
+include:
+  - immich.yml
+
+services:
+
+  baikal:
+    image: docker.io/ckulka/baikal
+    container_name: baikal
+    volumes:
+      - ${CONFIG_DIR}/baikal:/var/www/baikal/config:Z
+      - ${DB_DIR}/baikal:/var/www/baikal/Specific:Z
+    ports:
+      - ${BAIKAL_PORT}:80
+    networks:
+      - baikal
+    restart: always
+
+  finance-app:
+    build: ./finance-v2
+    container_name: finance-app
+    command: ./install-and-start.sh
+    depends_on:
+      - finance-db
+    user: 1000:1000
+    userns_mode: keep-id
+    volumes:
+      - ./finance-v2:/app:Z
+    ports:
+      - ${FINANCE_PORT}:3000
+    networks:
+      - finance
+    restart: always
+
+  finance-db:
+    image: docker.io/mariadb
+    container_name: finance-db
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    user: 1000:1000
+    userns_mode: keep-id
+    env_file: secrets/finance.env
+    environment:
+      - MYSQL_DATABASE=finance-db
+      - MYSQL_USER=finance
+    volumes:
+      - ${DB_DIR}/finance:/var/lib/mysql:Z
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - finance
+    restart: always
+
+  gitea:
+    image: docker.gitea.com/gitea
+    container_name: gitea
+    environment:
+      - USER_UID=${USER_ID}
+      - USER_GID=${USER_ID}
+    volumes:
+      - ${DB_DIR}/gitea:/data:Z
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - ${GITEA_PORT}:3000
+    restart: always
+ 
+  jellyfin:
+    image: docker.io/jellyfin/jellyfin
+    container_name: jellyfin
+    user: 1000:1000
+    userns_mode: keep-id
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://stream.fruzyna.net
+    volumes:
+      - ${CONFIG_DIR}/jellyfin:/config:Z
+      - ${DATA_DIR}/jellyfin-cache:/cache:Z
+      - ${MEDIA_DIR}/music:/media/music:Z
+      - ${MEDIA_DIR}/movies:/media/movies:Z
+      - ${MEDIA_DIR}/tv:/media/tv:Z
+      - ${DATA_DIR}/zap2it:/guide:ro,z
+    ports:
+      - 8096:8096
+      - 7359:7359/udp
+    restart: always
+
+  librespeed:
+    image: lscr.io/linuxserver/librespeed
+    container_name: librespeed
+    environment:
+      - PUID=${USER_ID}
+      - PGID=${USER_ID}
+      - TZ=${TIMEZONE}
+    ports:
+      - ${SPEED_PORT}:80
+    networks:
+      - librespeed
+    restart: always
+
+  miniflux-app:
+    image: docker.io/miniflux/miniflux
+    container_name: miniflux-app
+    depends_on:
+      - miniflux-db
+    user: 1000:1000
+    userns_mode: keep-id
+    env_file: secrets/miniflux.env
+    environment:
+      - RUN_MIGRATIONS=1
+      - CREATE_ADMIN=1
+      - ADMIN_USERNAME=admin
+    ports:
+      - ${MINIFLUX_PORT}:8080
+    networks:
+      - public
+      - miniflux
+    restart: always
+
+  miniflux-db:
+    image: docker.io/postgres:15-alpine
+    container_name: miniflux-db
+    user: 1000:1000
+    userns_mode: keep-id
+    env_file: secrets/miniflux.env
+    environment:
+      - POSTGRES_USER=miniflux
+      - POSTGRES_DB=miniflux
+    volumes:
+      - ${DB_DIR}/miniflux:/var/lib/postgresql/data:Z
+    networks:
+      - miniflux
+    restart: always
+
+  whisper:
+    image: lscr.io/linuxserver/faster-whisper:gpu-v2.3.0-ls49
+    container_name: whisper
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Americas/Chicago
+      - WHISPER_MODEL=large
+      - WHISPER_BEAM=5
+    volumes:
+      - ${DATA_DIR}/whisper:/config:Z
+    ports:
+      - 10300:10300
+    networks:
+      - whisper
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: always
+
+  wiki:
+    image: docker.io/redimp/otterwiki:2
+    container_name: wiki
+    volumes:
+      - ${DB_DIR}/wiki:/app-data:Z
+    ports:
+      - ${WIKI_PORT}:80
+    networks:
+      - wiki
+    restart: always
+
+  zap2it:
+    build: ./zap2it
+    container_name: zap2it
+    user: 1000:1000
+    userns_mode: keep-id
+    volumes:
+      - ${CONFIG_DIR}/zap2it:/config:Z
+      - ${DATA_DIR}/zap2it:/output:z
+    restart: always
+
+networks:
+
+  public:
+
+  baikal:
+    internal: true
+
+  librespeed:
+    internal: true
+
+  miniflux:
+    internal: true
+
+  finance:
+    internal: true
+
+  whisper:
+    internal: true
+
+  wiki:
+    internal: true
