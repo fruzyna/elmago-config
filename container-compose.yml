@@ -28,6 +28,7 @@ services:
     ports:
       - ${FINANCE_PORT}:3000
     networks:
+      - public
       - finance
     restart: always
 
