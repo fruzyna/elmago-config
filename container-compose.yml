@@ -1,5 +1,5 @@
-include:
-  - immich.yml
+#include:
+#  - immich.yml
 
 services:
 
